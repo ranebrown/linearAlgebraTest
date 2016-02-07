@@ -4,7 +4,7 @@
 #include "matrix.h"
 #include "matrix2.h"
 /* license:
- * 		- free to use but copyrighted
+ * 		- copyrighted
  * description: 
  *		- linear combinations of vectors and matrices; inner products;
  *			matrix-vector and matrix-matrix products
@@ -28,6 +28,7 @@
  * 		- fast
  * 		- fairly small
  * 		- seems easy to include additional functionality if needed (add .h file)
+ * 		- user friendly
  * ARM compatible
  *		- ???
  */ 	
@@ -38,8 +39,7 @@
 /************************* CBLAS start *************************/
 #include <cblas.h>
 /* license:
- * 		- copyrighted, can be included in commercial software packages,
- * 			credit authors, document any changes
+ * 		- copyrighted, can be included in commercial software packages
  * description: 
  *		- C interface to BLAS
  *		- low level vector and matrix operations
@@ -63,6 +63,33 @@
 
 
 
+/************************* LAPACKE start *************************/
+#include <lapacke.h>
+/* license:
+ * 		- copyrighted 
+ * description: 
+ *		- provides a c standard interface to lapack (fortran)
+ *		- provides routines for solving systems of simultaneous linear equations, 
+ *			least-squares solutions of linear systems of equations, eigenvalue problems, 
+ *			and singular value problems. The associated matrix factorizations 
+ *			(LU, Cholesky, QR, SVD, Schur, generalized Schur) are also provided
+ * installation:
+ * 		- installed with package manager
+ * use:
+ * 		- flags: -llapacke
+ * documentation:
+ * 		- http://www.netlib.org/lapack/explore-html/d7/d7c/example__user_8c.html
+ * comments:
+ * 		- specific way to define matrices for functions, or use cast
+ * 		- this library has been around for a long time (lapack)
+ * 		- seems to have good amount of functionality
+ * ARM compatible
+ *		-
+ */ 	
+/************************* LAPACKE end *************************/
+
+
+
 /*
  * Other possibilities and info:
  *		- List of open source linear algebra libraries http://www.netlib.org/utk/people/JackDongarra/la-sw.html
@@ -77,6 +104,9 @@
  *			- standardized c version of lapack
  *		- NAG http://www.nag.com/numeric/numerical_libraries.asp
  */
+
+// print matrix for lapacke
+void print_matrix_rowmajor( char* desc, lapack_int m, lapack_int n, double* mat, lapack_int ldm );
 
 int main(void)
 {
@@ -166,7 +196,59 @@ int main(void)
 			printf("%f\t",C_cblas[i][j]);
 		printf("\n");
 	}
+	printf("\n");
 	/************************* CBLAS end *************************/
 
+	/************************* LAPACKE start *************************/
+	/* Locals */
+	lapack_int n=5, nrhs=3, lda, ldb, info;
+	int i, j;
+	/* Local arrays */
+	double *A, *b;
+	lapack_int *ipiv;
+
+	/* Initialization */
+	lda=n, ldb=nrhs;
+	A = (double *)malloc(n*n*sizeof(double)) ;
+	if (A==NULL){ printf("error of memory allocation\n"); exit(0); }
+	b = (double *)malloc(n*nrhs*sizeof(double)) ;
+	if (b==NULL){ printf("error of memory allocation\n"); exit(0); }
+	ipiv = (lapack_int *)malloc(n*sizeof(lapack_int)) ;
+	if (ipiv==NULL){ printf("error of memory allocation\n"); exit(0); }
+	for( i = 0; i < n; i++ ) {
+		for( j = 0; j < n; j++ ) A[i*lda+j] = ((double) rand()) / ((double) RAND_MAX) - 0.5;
+	}
+	for(i=0;i<n*nrhs;i++)
+	    b[i] = ((double) rand()) / ((double) RAND_MAX) - 0.5;
+
+	printf( "LAPACKE_dgesv solve A*X = B\n" );
+	print_matrix_rowmajor( "Entry Matrix A", n, n, A, lda );
+	print_matrix_rowmajor( "Right Rand Side b", n, nrhs, b, ldb );
+	info = LAPACKE_dgesv( LAPACK_ROW_MAJOR, n, nrhs, A, lda, ipiv,
+						b, ldb );
+	/* Check for the exact singularity */
+	if( info > 0 ) {
+		printf( "The diagonal element of the triangular factor of A,\n" );
+		printf( "U(%i,%i) is zero, so that A is singular;\n", info, info );
+		printf( "the solution could not be computed.\n" );
+		exit( 1 );
+	}
+	if (info <0) exit( 1 );
+	/* Print solution */
+	print_matrix_rowmajor( "Solution", n, nrhs, b, ldb );
+	exit( 0 );
+	/************************* LAPACKE end *************************/
 	return 0;
 }
+
+ /* Auxiliary routine: printing a matrix */
+void print_matrix_rowmajor( char* desc, lapack_int m, lapack_int n, double* mat, lapack_int ldm ) {
+	lapack_int i, j;
+	printf( "%s\n", desc );
+	for( i = 0; i < m; i++ ) {
+		for( j = 0; j < n; j++ ) printf( " %6.2f", mat[i*ldm+j] );
+	printf( "\n" );
+	}
+}
+
+

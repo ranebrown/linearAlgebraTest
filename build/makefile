@@ -19,7 +19,7 @@ CFLAGS = -Wall -Wextra -g -Wno-implicit-int $(INCLUDES)
 LFLAGS =  -L $(INCDIR)
 
 # The specific libraries that project depends on -l flags
-LIBS = -l meschach -l m -lcblas
+LIBS = -l meschach -l m -lcblas -llapacke
 
 # All source files
 SRCS = $(wildcard $(SRCDIR)/*.c)
