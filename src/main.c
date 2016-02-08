@@ -30,7 +30,8 @@
  * 		- seems easy to include additional functionality if needed (add .h file)
  * 		- user friendly
  * ARM compatible
- *		- ???
+ *		- ftp://ftp.netbsd.org/pub/pkgsrc/current/pkgsrc/math/meschach/README.html
+ *		- available, not sure how optimized it is
  */ 	
 /************************* meschach end *************************/
 
@@ -77,14 +78,16 @@
  * 		- installed with package manager
  * use:
  * 		- flags: -llapacke
- * documentation:
+ * documentation: 
  * 		- http://www.netlib.org/lapack/explore-html/d7/d7c/example__user_8c.html
+ * 		- http://www.netlib.org/lapack/lapacke.html
  * comments:
  * 		- specific way to define matrices for functions, or use cast
  * 		- this library has been around for a long time (lapack)
  * 		- seems to have good amount of functionality
  * ARM compatible
- *		-
+ *		- http://ds.arm.com/solutions/high-performance-computing/arm-performance-libraries/
+ *		- above link has BLAS LAPACK and FFT support (not free)
  */ 	
 /************************* LAPACKE end *************************/
 
@@ -96,13 +99,15 @@
  *		- BLAS wikipedia page lists libraries that use BLAS
  * 		- ATLAS http://math-atlas.sourceforge.net/
  * 			- optimized (per machine) BLAS library with some LAPACK functionality
+ * 		- OpenBLAS
+ * 			- optimized BLAS library (arm support)
  * 		- GSL http://www.gnu.org/software/gsl/
  *		- CLAPACK http://www.netlib.org/clapack/
  *			- c version of lapack - not standardized
  *		- LAPACK http://www.netlib.org/lapack/
- *		- LAPACKE http://www.netlib.org/lapack/lapacke.html
- *			- standardized c version of lapack
  *		- NAG http://www.nag.com/numeric/numerical_libraries.asp
+ *		- MCSDK HPC 3.x
+ *			- http://processors.wiki.ti.com/index.php/MCSDK_HPC_3.x_Linear_Algebra_Library
  */
 
 // print matrix for lapacke
