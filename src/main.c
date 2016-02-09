@@ -29,6 +29,8 @@
  * 		- fairly small
  * 		- seems easy to include additional functionality if needed (add .h file)
  * 		- user friendly
+ * 		- benefits of lapack -> data structures for matrices, easy to resize, 
+ * 		- sparse matrix support
  * ARM compatible
  *		- ftp://ftp.netbsd.org/pub/pkgsrc/current/pkgsrc/math/meschach/README.html
  *		- available, not sure how optimized it is
@@ -85,11 +87,38 @@
  * 		- specific way to define matrices for functions, or use cast
  * 		- this library has been around for a long time (lapack)
  * 		- seems to have good amount of functionality
+ * 		- no data structures or support for creating matrix
  * ARM compatible
  *		- http://ds.arm.com/solutions/high-performance-computing/arm-performance-libraries/
  *		- above link has BLAS LAPACK and FFT support (not free)
+ *		- probably other options as well
  */ 	
 /************************* LAPACKE end *************************/
+
+
+
+/************************* GSL start *************************/
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
+/* license:
+ * 		- GNU General Public License
+ * description: 
+ *		- The library provides a wide range of mathematical routines such as random number generators,
+ *			special functions and least-squares fitting. There are over 1000 functions in total
+ * installation:
+ * 		- package manager
+ * use:
+ * 		- flags: -lgsl -lgslcblas
+ * documentation: 
+ * 		- http://www.gnu.org/software/gsl/manual/html_node/ 
+ * comments:
+ * 		- GSL requires a BLAS library for vector and matrix operations.
+ * 		- The default CBLAS library supplied with GSL can be replaced by the tuned ATLAS library for better performance
+ * 		- has a lot of uneeded funtionality
+ * ARM compatible
+ *		- can be cross compiled (optimization? effeciency?)
+ */ 	
+/************************* GSL end *************************/
 
 
 
@@ -101,7 +130,6 @@
  * 			- optimized (per machine) BLAS library with some LAPACK functionality
  * 		- OpenBLAS
  * 			- optimized BLAS library (arm support)
- * 		- GSL http://www.gnu.org/software/gsl/
  *		- CLAPACK http://www.netlib.org/clapack/
  *			- c version of lapack - not standardized
  *		- LAPACK http://www.netlib.org/lapack/
@@ -115,6 +143,8 @@ void print_matrix_rowmajor( char* desc, lapack_int m, lapack_int n, double* mat,
 
 int main(void)
 {
+	int i,j;
+
 	/************************* meschach start *************************/
 	// creating matrix
 	MAT *A_mesch=NULL, *B_mesch=NULL, *C_mesch=NULL;
@@ -132,8 +162,7 @@ int main(void)
 	B_mesch->me[0][0] = 1;
 	B_mesch->me[0][1] = 3;
 	B_mesch->me[0][2] = 3;
-	B_mesch->me[1][0] = 1;
-	B_mesch->me[1][1] = 4;
+	B_mesch->me[1][0] = 1; B_mesch->me[1][1] = 4;
 	B_mesch->me[1][2] = 3;
 	B_mesch->me[2][0] = 1;
 	B_mesch->me[2][1] = 3;
@@ -150,11 +179,42 @@ int main(void)
 
 	// inverse
 	C_mesch = m_inverse(B_mesch,MNULL);	
+	
+	// solve Ax=b
+	double mesch_data[4][4] = 
+	{
+		{0.18, 0.60, 0.57, 0.96},
+		{0.41, 0.24, 0.99, 0.58},
+		{0.14, 0.30, 0.97, 0.66},
+		{0.51, 0.13, 0.19, 0.85}
+	};
+	VEC *mesch_x, *mesch_b;
+	MAT	*mesch_A, *LU;
+	PERM *pivot;
+	mesch_b = v_get(4);
+	mesch_b->ve[0] = 1;
+	mesch_b->ve[1] = 2;
+	mesch_b->ve[2] = 3;
+	mesch_b->ve[3] = 4;
+	mesch_A = m_get(4,4);
+	for(i=0; i<4; i++)
+		for(j=0; j<4; j++)
+			mesch_A->me[i][j] = mesch_data[i][j];
+	LU = m_get(mesch_A->m,mesch_A->n);
+	LU = m_copy(mesch_A,LU);
+	pivot = px_get(mesch_A->m);
+	LUfactor(LU,pivot);
+	mesch_x = LUsolve(LU,pivot,mesch_b,VNULL);
+	printf("meschach solve Ax=b\n"); v_output(mesch_x); printf("\n");
 
 	// free matrix
 	m_free(A_mesch);
 	m_free(B_mesch);
 	m_free(C_mesch);
+	m_free(mesch_A);
+	m_free(LU);
+	v_free(mesch_b);
+	v_free(mesch_x);
 	/************************* meschach end *************************/
 
 
@@ -196,8 +256,8 @@ int main(void)
 	cblas_sgemm (CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, 3, 3, 1, (float *) A_cblas,
 										3, (float *) B_cblas, 3, 0, (float *) C_cblas, 3);	
 	printf("CBLAS matrix C=A*B\nresult:\n");
-	for(int i=0; i<3; i++) {
-		for(int j=0; j<3; j++) 
+	for(i=0; i<3; i++) {
+		for(j=0; j<3; j++) 
 			printf("%f\t",C_cblas[i][j]);
 		printf("\n");
 	}
@@ -205,21 +265,17 @@ int main(void)
 	/************************* CBLAS end *************************/
 
 	/************************* LAPACKE start *************************/
-	/* Locals */
+	// solve Ax=b
+	// variables
 	lapack_int n=5, nrhs=3, lda, ldb, info;
-	int i, j;
-	/* Local arrays */
 	double *A, *b;
 	lapack_int *ipiv;
 
 	/* Initialization */
 	lda=n, ldb=nrhs;
 	A = (double *)malloc(n*n*sizeof(double)) ;
-	if (A==NULL){ printf("error of memory allocation\n"); exit(0); }
 	b = (double *)malloc(n*nrhs*sizeof(double)) ;
-	if (b==NULL){ printf("error of memory allocation\n"); exit(0); }
 	ipiv = (lapack_int *)malloc(n*sizeof(lapack_int)) ;
-	if (ipiv==NULL){ printf("error of memory allocation\n"); exit(0); }
 	for( i = 0; i < n; i++ ) {
 		for( j = 0; j < n; j++ ) A[i*lda+j] = ((double) rand()) / ((double) RAND_MAX) - 0.5;
 	}
@@ -239,10 +295,69 @@ int main(void)
 		exit( 1 );
 	}
 	if (info <0) exit( 1 );
+
 	/* Print solution */
 	print_matrix_rowmajor( "Solution", n, nrhs, b, ldb );
-	exit( 0 );
+	printf("\n");
 	/************************* LAPACKE end *************************/
+	
+	
+	
+	/************************* GSL start *************************/
+	// create a matrix	
+	gsl_matrix * A_GSL = gsl_matrix_alloc (4,4);
+	gsl_matrix * B_GSL = gsl_matrix_alloc(4,4);
+   
+	// load a matrix with values	
+	gsl_matrix_set_identity(A_GSL);
+	gsl_matrix_set_all(A_GSL, 4.2);
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++) {
+			gsl_matrix_set (A_GSL, i, j, 0.23 + 100*i + j);
+			gsl_matrix_set (B_GSL, i, j, 0.23 + 10*i);
+		}
+
+	// print matrix (get values)
+	printf("A_GSL\n");
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++)
+			printf ("%g\t",gsl_matrix_get(A_GSL, i, j));
+		printf("\n");
+	}
+
+	// add matrix (must be same dimensions) results stored in matrix A
+	int res = gsl_matrix_add(A_GSL,B_GSL);
+	if(res != 0)
+		return 1;
+
+	// multiply matrix
+	// use cblas (multiply elementwise available though)
+
+	// solve Ax=b
+	double a_data[] = { 0.18, 0.60, 0.57, 0.96,
+	                      0.41, 0.24, 0.99, 0.58,
+	                      0.14, 0.30, 0.97, 0.66,
+	                      0.51, 0.13, 0.19, 0.85 };
+	double b_data[] = { 1.0, 2.0, 3.0, 4.0 };
+	gsl_matrix_view m = gsl_matrix_view_array (a_data, 4, 4);
+	gsl_vector_view bb = gsl_vector_view_array (b_data, 4);
+	gsl_vector *x = gsl_vector_alloc (4);
+	int s;
+	gsl_permutation * p = gsl_permutation_alloc (4);
+	gsl_linalg_LU_decomp (&m.matrix, p, &s);
+	gsl_linalg_LU_solve (&m.matrix, p, &bb.vector, x);
+	printf("\n");
+	printf ("GSL solve Ax = b\n");
+	gsl_vector_fprintf (stdout, x, "%g");
+	printf("\n");
+
+	// free matrix
+	gsl_matrix_free(A_GSL);
+	gsl_matrix_free(B_GSL);
+	gsl_permutation_free (p);
+	gsl_vector_free (x);
+	/************************* GSL end *************************/
+
 	return 0;
 }
 
