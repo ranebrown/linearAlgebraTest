@@ -2,5 +2,5 @@
 *.swp
 *.pyc
 build/
-TAGS
-tags
+.tags
+*.taghl
